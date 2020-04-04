@@ -1043,6 +1043,101 @@ export class EntityManager {
     }
 
     /**
+     * Finds single entity that matches given find options.
+     */
+    findSingle<Entity>(entityClass: ObjectType<Entity>, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given find options.
+     */
+    findSingle<Entity>(entityClass: EntitySchema<Entity>, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given find options.
+     */
+    findSingle<Entity>(entityClass: string, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given find options.
+     */
+    findSingle<Entity>(entityClass: ObjectType<Entity>, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given find options.
+     */
+    findSingle<Entity>(entityClass: EntitySchema<Entity>, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given find options.
+     */
+    findSingle<Entity>(entityClass: string, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given conditions.
+     */
+    findSingle<Entity>(entityClass: ObjectType<Entity>, conditions?: FindConditions<Entity>, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given conditions.
+     */
+    findSingle<Entity>(entityClass: EntitySchema<Entity>, conditions?: FindConditions<Entity>, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given conditions.
+     */
+    findSingle<Entity>(entityClass: string, conditions?: FindConditions<Entity>, options?: FindOneOptions<Entity>): Promise<Entity|undefined>;
+
+    /**
+     * Finds single entity that matches given conditions.
+     */
+    async findSingle<Entity>(entityClass: ObjectType<Entity>|EntitySchema<Entity>|string, idOrOptionsOrConditions?: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|FindOneOptions<Entity>|any, maybeOptions?: FindOneOptions<Entity>): Promise<Entity|undefined> {
+
+        let findOptions: FindManyOptions<any>|FindOneOptions<any>|undefined = undefined;
+        if (FindOptionsUtils.isFindOneOptions(idOrOptionsOrConditions)) {
+            findOptions = idOrOptionsOrConditions;
+        } else if (maybeOptions && FindOptionsUtils.isFindOneOptions(maybeOptions)) {
+            findOptions = maybeOptions;
+        }
+
+        let options: ObjectLiteral|undefined = undefined;
+        if (idOrOptionsOrConditions instanceof Object && !FindOptionsUtils.isFindOneOptions(idOrOptionsOrConditions))
+            options = idOrOptionsOrConditions as ObjectLiteral;
+
+        const metadata = this.connection.getMetadata(entityClass);
+        let alias: string = metadata.name;
+        if (findOptions && findOptions.join) {
+            alias = findOptions.join.alias;
+
+        } else if (maybeOptions && FindOptionsUtils.isFindOneOptions(maybeOptions) && maybeOptions.join) {
+            alias = maybeOptions.join.alias;
+        }
+        const qb = this.createQueryBuilder<Entity>(entityClass as any, alias);
+
+        if (!findOptions || findOptions.loadEagerRelations !== false)
+            FindOptionsUtils.joinEagerRelations(qb, qb.alias, qb.expressionMap.mainAlias!.metadata);
+
+        const passedId = typeof idOrOptionsOrConditions === "string" || typeof idOrOptionsOrConditions === "number" || (idOrOptionsOrConditions as any) instanceof Date;
+
+        if (!passedId) {
+            findOptions = {
+                ...(findOptions || {}),
+                take: 2,
+            };
+        }
+
+        FindOptionsUtils.applyOptionsToQueryBuilder(qb, findOptions);
+
+        if (options) {
+            qb.where(options);
+
+        } else if (passedId) {
+            qb.andWhereInIds(metadata.ensureEntityIdMap(idOrOptionsOrConditions));
+        }
+
+        return qb.getOne(true);
+    }
+
+    /**
      * Finds first entity that matches given find options or rejects the returned promise on error.
      */
     findOneOrFail<Entity>(entityClass: ObjectType<Entity>, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity>;
@@ -1092,6 +1187,63 @@ export class EntityManager {
      */
     async findOneOrFail<Entity>(entityClass: ObjectType<Entity>|EntitySchema<Entity>|string, idOrOptionsOrConditions?: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|FindOneOptions<Entity>|any, maybeOptions?: FindOneOptions<Entity>): Promise<Entity> {
         return this.findOne<Entity>(entityClass as any, idOrOptionsOrConditions as any, maybeOptions).then((value) => {
+            if (value === undefined) {
+                return Promise.reject(new EntityNotFoundError(entityClass, idOrOptionsOrConditions));
+            }
+            return Promise.resolve(value);
+        });
+    }
+
+    /**
+     * Finds single entity that matches given find options or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: ObjectType<Entity>, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given find options or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: EntitySchema<Entity>, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given find options or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: string, id?: string|number|Date|ObjectID, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given find options or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: ObjectType<Entity>, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given find options or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: EntitySchema<Entity>, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given find options or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: string, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given conditions or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: ObjectType<Entity>, conditions?: FindConditions<Entity>, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given conditions or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: EntitySchema<Entity>, conditions?: FindConditions<Entity>, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given conditions or rejects the returned promise on error.
+     */
+    findSingleOrFail<Entity>(entityClass: string, conditions?: FindConditions<Entity>, options?: FindOneOptions<Entity>): Promise<Entity>;
+
+    /**
+     * Finds single entity that matches given conditions or rejects the returned promise on error.
+     */
+    async findSingleOrFail<Entity>(entityClass: ObjectType<Entity>|EntitySchema<Entity>|string, idOrOptionsOrConditions?: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|FindOneOptions<Entity>|any, maybeOptions?: FindOneOptions<Entity>): Promise<Entity> {
+        return this.findSingle<Entity>(entityClass as any, idOrOptionsOrConditions as any, maybeOptions).then((value) => {
             if (value === undefined) {
                 return Promise.reject(new EntityNotFoundError(entityClass, idOrOptionsOrConditions));
             }

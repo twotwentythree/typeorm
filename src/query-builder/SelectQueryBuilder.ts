@@ -1081,8 +1081,13 @@ export class SelectQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
     /**
      * Gets single entity returned by execution of generated query builder sql.
      */
-    async getOne(): Promise<Entity|undefined> {
+    async getOne(checkResultsLength?: boolean): Promise<Entity|undefined> {
         const results = await this.getRawAndEntities();
+
+        if (checkResultsLength && results.entities.length > 1) {
+            throw new Error(`Returned multiple results for ${this.getSql()}`)
+        }
+
         const result = results.entities[0] as any;
 
         if (result && this.expressionMap.lockMode === "optimistic" && this.expressionMap.lockVersion) {
