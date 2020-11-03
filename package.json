@@ -1,7 +1,7 @@
 {
   "name": "@twotwentythree/typeorm",
   "private": true,
-  "version": "0.2.29",
+  "version": "0.2.29-1",
   "description": "twotwentythree fork",
   "license": "MIT",
   "readmeFilename": "README.md",
