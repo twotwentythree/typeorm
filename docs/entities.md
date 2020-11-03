@@ -200,6 +200,8 @@ You don't need to set this column - it will be automatically set.
 each time you call `save` of entity manager or repository.
 You don't need to set this column - it will be automatically set.
 
+* `@DeleteDateColumn` is a special column that is automatically set to the entity's delete time each time you call soft-delete of entity manager or repository. You don't need to set this column - it will be automatically set. If the @DeleteDateColumn is set, the default scope will be "non-deleted".
+
 * `@VersionColumn` is a special column that is automatically set to the version of the entity (incremental number)  
 each time you call `save` of entity manager or repository.
 You don't need to set this column - it will be automatically set.
@@ -289,6 +291,8 @@ or
 @Column({ type: "int", width: 200 })
 ```
 
+> Note about `bigint` type: `bigint` column type, used in SQL databases, doesn't fit into the regular `number` type and maps property to a `string` instead.
+
 ### Column types for `mysql` / `mariadb`
 
 `bit`, `int`, `integer`, `tinyint`, `smallint`, `mediumint`, `bigint`, `float`, `double`,
@@ -307,7 +311,7 @@ or
 `date`, `time`, `time without time zone`, `time with time zone`, `interval`, `bool`, `boolean`,
 `enum`, `point`, `line`, `lseg`, `box`, `path`, `polygon`, `circle`, `cidr`, `inet`, `macaddr`,
 `tsvector`, `tsquery`, `uuid`, `xml`, `json`, `jsonb`, `int4range`, `int8range`, `numrange`,
-`tsrange`, `tstzrange`, `daterange`, `geometry`, `geography`, `cube`
+`tsrange`, `tstzrange`, `daterange`, `geometry`, `geography`, `cube`, `ltree`
 
 ### Column types for `cockroachdb`
 
@@ -476,7 +480,7 @@ Note you **MUST NOT** have any comma in values you write.
 There is a special column type called `simple-json` which can store any values which can be stored in database
 via JSON.stringify.
 Very useful when you do not have json type in your database and you want to store and load object
-without any hustle.
+without any hassle.
 For example:
 
 ```typescript
@@ -701,11 +705,11 @@ export class Category {
     @Column()
     description: string;
 
-    @OneToMany(type => Category, category => category.children)
+    @ManyToOne(type => Category, category => category.children)
     parent: Category;
 
-    @ManyToOne(type => Category, category => category.parent)
-    children: Category;
+    @OneToMany(type => Category, category => category.parent)
+    children: Category[];
 }
 
 ```

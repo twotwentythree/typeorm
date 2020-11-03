@@ -3,7 +3,7 @@
 * [What is `QueryBuilder`](#what-is-querybuilder)
 * [How to create and use a `QueryBuilder`](#how-to-create-and-use-a-querybuilder)
 * [Getting values using QueryBuilder](#getting-values-using-querybuilder)
-* [What are aliases for?](#what-are-aliases-for?)
+* [What are aliases for?](#what-are-aliases-for)
 * [Using parameters to escape data](#using-parameters-to-escape-data)
 * [Adding `WHERE` expression](#adding-where-expression)
 * [Adding `HAVING` expression](#adding-having-expression)
@@ -174,6 +174,16 @@ const timber = await getRepository(User)
     .getOne();
 ```
 
+`getOneOrFail` will get a single result from the database, but if
+no result exists it will throw an `EntityNotFoundError`:
+
+```typescript
+const timber = await getRepository(User)
+    .createQueryBuilder("user")
+    .where("user.id = :id OR user.name = :name", { id: 1, name: "Timber" })
+    .getOneOrFail();
+```
+
 To get multiple results from the database,
 for example, to get all users from the database, use `getMany`:
 
@@ -204,7 +214,7 @@ const photosSums = await getRepository(User)
     .createQueryBuilder("user")
     .select("user.id")
     .addSelect("SUM(user.photosCount)", "sum")
-    .where("user.id = :id", { id: 1 })
+    .groupBy("user.id")
     .getRawMany();
 
 // result will be like this: [{ id: 1, sum: 25 }, { id: 2, sum: 13 }, ...]
@@ -342,7 +352,7 @@ createQueryBuilder("user")
 Which will produce the following SQL query:
 
 ```sql
-SELECT ... FROM users user WHERE user.firstName IN (1, 2, 3, 4)
+SELECT ... FROM users user WHERE user.id IN (1, 2, 3, 4)
 ```
 
 
@@ -776,7 +786,7 @@ const photosSums = await getRepository(User)
     .createQueryBuilder("user")
     .select("user.id")
     .addSelect("SUM(user.photosCount)", "sum")
-    .where("user.id = :id", { id: 1 })
+    .groupBy("user.id")
     .getRawMany();
 
 // result will be like this: [{ id: 1, sum: 25 }, { id: 2, sum: 13 }, ...]

@@ -1,7 +1,7 @@
 import {CockroachDriver} from "../driver/cockroachdb/CockroachDriver";
 import {QueryBuilder} from "./QueryBuilder";
 import {ObjectLiteral} from "../common/ObjectLiteral";
-import {ObjectType} from "../common/ObjectType";
+import {EntityTarget} from "../common/EntityTarget";
 import {Connection} from "../connection/Connection";
 import {QueryRunner} from "../query-runner/QueryRunner";
 import {SqlServerDriver} from "../driver/sqlserver/SqlServerDriver";
@@ -142,7 +142,7 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * Specifies FROM which entity's table select/update/delete/soft-delete will be executed.
      * Also sets a main string alias of the selection data.
      */
-    from<T>(entityTarget: ObjectType<T>|EntitySchema<T>|string, aliasName?: string): SoftDeleteQueryBuilder<T> {
+    from<T>(entityTarget: EntityTarget<T>, aliasName?: string): SoftDeleteQueryBuilder<T> {
         entityTarget = entityTarget instanceof EntitySchema ? entityTarget.options.name : entityTarget;
         const mainAlias = this.createFromAlias(entityTarget, aliasName);
         this.expressionMap.setMainAlias(mainAlias);
@@ -334,7 +334,7 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
             throw new Error(`.whereEntity method can only be used on queries which update real entity table.`);
 
         this.expressionMap.wheres = [];
-        const entities: Entity[] = entity instanceof Array ? entity : [entity];
+        const entities: Entity[] = Array.isArray(entity) ? entity : [entity];
         entities.forEach(entity => {
 
             const entityIdMap = this.expressionMap.mainAlias!.metadata.getEntityIdMap(entity);

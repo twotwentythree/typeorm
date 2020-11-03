@@ -146,7 +146,7 @@ export class DateUtils {
      * Converts each item in the given array to string joined by "," separator.
      */
     static simpleArrayToString(value: any[]|any): string[]|any {
-        if (value instanceof Array) {
+        if (Array.isArray(value)) {
             return (value as any[])
                 .map(i => String(i))
                 .join(",");
@@ -175,12 +175,7 @@ export class DateUtils {
     }
 
     static stringToSimpleJson(value: any) {
-        try {
-            const simpleJSON = JSON.parse(value);
-            return (typeof simpleJSON === "object") ? simpleJSON : {};
-       } catch (err) {
-            return {};
-       }
+        return typeof value === "string" ? JSON.parse(value) : value;
     }
 
     static simpleEnumToString(value: any) {

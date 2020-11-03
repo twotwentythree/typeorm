@@ -44,7 +44,7 @@ export class Question {
     @Column()
     text: string;
 
-    @ManyToMany(type => Category)
+    @ManyToMany(() => Category)
     @JoinTable()
     categories: Category[];
 
@@ -69,6 +69,7 @@ This example will produce following tables:
 +-------------+--------------+----------------------------+
 | id          | int(11)      | PRIMARY KEY AUTO_INCREMENT |
 | title       | varchar(255) |                            |
+| text        | varchar(255) |                            |
 +-------------+--------------+----------------------------+
 
 +-------------+--------------+----------------------------+
@@ -115,6 +116,45 @@ await connection.manager.save(question)
 
 This will only remove the record in the join table. The `question` and `categoryToRemove` records will still exist.
 
+## Soft Deleting a relationship with cascade
+
+This example show what the cascading soft deletes behaves
+
+```typescript
+const category1 = new Category();
+category1.name = "animals";
+
+const category2 = new Category();
+category2.name = "zoo";
+
+const question = new Question();
+question.categories = [category1, category2];
+const newQuestion =  await connection.manager.save(question);
+
+await connection.manager.softRemove(newQuestion);
+```
+
+As you can see in this example we did not call save or softRemove for category1 and category2. But They will be automatically saved and soft-deleted when the cascade of relation options is set to true like this:
+
+```typescript
+import {Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable} from "typeorm";
+import {Category} from "./Category";
+
+@Entity()
+export class Question {
+
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @ManyToMany(() => Category, category => category.questions, {
+        cascade: true
+    })
+    @JoinTable()
+    categories: Category[];
+
+}
+```
+
 ## Loading many-to-many relations
 
 To load question with categories inside you must specify relation in `FindOptions`:
@@ -134,7 +174,7 @@ const questions = await connection
     .getMany();
 ```
 
-With eager loading enabled on a relation you don't have to specify relation or join it - it will ALWAYS be loaded automatically.
+When using `FindOptions` you don't need to specify eager relations - they are always automatically loaded.
 
 ## bi-directional relations
 
@@ -157,7 +197,7 @@ export class Category {
     @Column()
     name: string;
 
-    @ManyToMany(type => Question, question => question.categories)
+    @ManyToMany(() => Question, question => question.categories)
     questions: Question[];
 
 }
@@ -179,7 +219,7 @@ export class Question {
     @Column()
     text: string;
 
-    @ManyToMany(type => Category, category => category.questions)
+    @ManyToMany(() => Category, category => category.questions)
     @JoinTable()
     categories: Category[];
 
@@ -201,7 +241,7 @@ const categoriesWithQuestions = await connection
 
 ## many-to-many relations with custom properties
 
-In case you need to have additional properties to your many-to-many relationship you have to create a new entity yourself. 
+In case you need to have additional properties to your many-to-many relationship you have to create a new entity yourself.
 For example if you would like entities `Post` and `Category` to have a many-to-many relationship with additional `order` column, you need to create entity `PostToCategory` with two `ManyToOne` relations pointing in both directions and custom columns in it:
 
 ```typescript
@@ -216,17 +256,17 @@ export class PostToCategory {
 
     @Column()
     public postId!: number;
-    
+
     @Column()
     public categoryId!: number;
-   
+
     @Column()
     public order!: number;
 
-    @ManyToOne(type => Post, post => post.postToCategories)
+    @ManyToOne(() => Post, post => post.postToCategories)
     public post!: Post;
 
-    @ManyToOne(type => Category, category => category.postToCategories)
+    @ManyToOne(() => Category, category => category.postToCategories)
     public category!: Category;
 }
 ```
@@ -236,11 +276,11 @@ Additionally you will have to add a relationship like the following to `Post` an
 ```typescript
 // category.ts
 ...
-@OneToMany(type => PostToCategory, postToCategory => postToCategory.category)
+@OneToMany(() => PostToCategory, postToCategory => postToCategory.category)
 public postToCategories!: PostToCategory[];
 
 // post.ts
 ...
-@OneToMany(type => PostToCategory, postToCategory => postToCategory.post)
+@OneToMany(() => PostToCategory, postToCategory => postToCategory.post)
 public postToCategories!: PostToCategory[];
 ```

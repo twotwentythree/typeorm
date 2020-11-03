@@ -38,13 +38,13 @@ export interface FindOneOptions<Entity = any> {
     cache?: boolean | number | { id: any, milliseconds: number };
 
     /**
-     * Enables or disables query result caching.
+     * Indicates what locking mode should be used.
      */
-    lock?: { mode: "optimistic", version: number|Date } | { mode: "pessimistic_read"|"pessimistic_write"|"dirty_read" };
+    lock?: { mode: "optimistic", version: number|Date } | { mode: "pessimistic_read"|"pessimistic_write"|"dirty_read"|"pessimistic_partial_write"|"pessimistic_write_or_fail" };
 
     /**
      * Indicates if soft-deleted rows should be included in entity result.
-     */    
+     */
     withDeleted?: boolean;
 
     /**
@@ -58,5 +58,10 @@ export interface FindOneOptions<Entity = any> {
      * By default they are loaded when find methods are used.
      */
     loadEagerRelations?: boolean;
+
+    /**
+     * If this is set to true, SELECT query in a `find` method will be executed in a transaction.
+     */
+    transaction?: boolean
 
 }

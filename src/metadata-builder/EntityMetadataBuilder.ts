@@ -9,6 +9,7 @@ import {MetadataArgsStorage} from "../metadata-args/MetadataArgsStorage";
 import {EmbeddedMetadataArgs} from "../metadata-args/EmbeddedMetadataArgs";
 import {RelationIdMetadata} from "../metadata/RelationIdMetadata";
 import {RelationCountMetadata} from "../metadata/RelationCountMetadata";
+import { EventListenerTypes } from "../metadata/types/EventListenerTypes";
 import {MetadataUtils} from "./MetadataUtils";
 import {TableMetadataArgs} from "../metadata-args/TableMetadataArgs";
 import {JunctionEntityMetadataBuilder} from "./JunctionEntityMetadataBuilder";
@@ -335,7 +336,12 @@ export class EntityMetadataBuilder {
         const entityInheritance = this.metadataArgsStorage.findInheritanceType(entityMetadata.target);
 
         const discriminatorValue = this.metadataArgsStorage.findDiscriminatorValue(entityMetadata.target);
-        entityMetadata.discriminatorValue = discriminatorValue ? discriminatorValue.value : (entityMetadata.target as any).name; // todo: pass this to naming strategy to generate a name
+
+        if (typeof discriminatorValue !== "undefined") {
+            entityMetadata.discriminatorValue = discriminatorValue.value;
+        } else {
+            entityMetadata.discriminatorValue = (entityMetadata.target as any).name;
+        }
 
         // if single table inheritance is used, we need to mark all embedded columns as nullable
         entityMetadata.embeddeds = this.createEmbeddedsRecursively(entityMetadata, this.metadataArgsStorage.filterEmbeddeds(entityMetadata.inheritanceTree))
@@ -403,6 +409,8 @@ export class EntityMetadataBuilder {
             }
         }
 
+        const { namingStrategy } = this.connection;
+
         // check if tree is used then we need to add extra columns for specific tree types
         if (entityMetadata.treeType === "materialized-path") {
             entityMetadata.ownColumns.push(new ColumnMetadata({
@@ -414,7 +422,7 @@ export class EntityMetadataBuilder {
                     mode: "virtual",
                     propertyName: "mpath",
                     options: /*tree.column || */ {
-                        name: "mpath",
+                        name: namingStrategy.materializedPathColumnName,
                         type: "varchar",
                         nullable: true,
                         default: ""
@@ -423,6 +431,7 @@ export class EntityMetadataBuilder {
             }));
 
         } else if (entityMetadata.treeType === "nested-set") {
+            const { left, right } = namingStrategy.nestedSetColumnNames;
             entityMetadata.ownColumns.push(new ColumnMetadata({
                 connection: this.connection,
                 entityMetadata: entityMetadata,
@@ -430,9 +439,9 @@ export class EntityMetadataBuilder {
                 args: {
                     target: entityMetadata.target,
                     mode: "virtual",
-                    propertyName: "nsleft",
+                    propertyName: left,
                     options: /*tree.column || */ {
-                        name: "nsleft",
+                        name: left,
                         type: "integer",
                         nullable: false,
                         default: 1
@@ -446,9 +455,9 @@ export class EntityMetadataBuilder {
                 args: {
                     target: entityMetadata.target,
                     mode: "virtual",
-                    propertyName: "nsright",
+                    propertyName: right,
                     options: /*tree.column || */ {
-                        name: "nsright",
+                        name: right,
                         type: "integer",
                         nullable: false,
                         default: 2
@@ -607,13 +616,13 @@ export class EntityMetadataBuilder {
         entityMetadata.treeChildrenRelation = entityMetadata.relations.find(relation => relation.isTreeChildren);
         entityMetadata.columns = entityMetadata.embeddeds.reduce((columns, embedded) => columns.concat(embedded.columnsFromTree), entityMetadata.ownColumns);
         entityMetadata.listeners = entityMetadata.embeddeds.reduce((columns, embedded) => columns.concat(embedded.listenersFromTree), entityMetadata.ownListeners);
-        entityMetadata.afterLoadListeners = entityMetadata.listeners.filter(listener => listener.type === "after-load");
-        entityMetadata.afterInsertListeners = entityMetadata.listeners.filter(listener => listener.type === "after-insert");
-        entityMetadata.afterUpdateListeners = entityMetadata.listeners.filter(listener => listener.type === "after-update");
-        entityMetadata.afterRemoveListeners = entityMetadata.listeners.filter(listener => listener.type === "after-remove");
-        entityMetadata.beforeInsertListeners = entityMetadata.listeners.filter(listener => listener.type === "before-insert");
-        entityMetadata.beforeUpdateListeners = entityMetadata.listeners.filter(listener => listener.type === "before-update");
-        entityMetadata.beforeRemoveListeners = entityMetadata.listeners.filter(listener => listener.type === "before-remove");
+        entityMetadata.afterLoadListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.AFTER_LOAD);
+        entityMetadata.afterInsertListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.AFTER_INSERT);
+        entityMetadata.afterUpdateListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.AFTER_UPDATE);
+        entityMetadata.afterRemoveListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.AFTER_REMOVE);
+        entityMetadata.beforeInsertListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.BEFORE_INSERT);
+        entityMetadata.beforeUpdateListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.BEFORE_UPDATE);
+        entityMetadata.beforeRemoveListeners = entityMetadata.listeners.filter(listener => listener.type === EventListenerTypes.BEFORE_REMOVE);
         entityMetadata.indices = entityMetadata.embeddeds.reduce((columns, embedded) => columns.concat(embedded.indicesFromTree), entityMetadata.ownIndices);
         entityMetadata.uniques = entityMetadata.embeddeds.reduce((columns, embedded) => columns.concat(embedded.uniquesFromTree), entityMetadata.ownUniques);
         entityMetadata.primaryColumns = entityMetadata.columns.filter(column => column.isPrimary);

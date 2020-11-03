@@ -1,5 +1,6 @@
 import {CockroachDriver} from "../driver/cockroachdb/CockroachDriver";
 import {SapDriver} from "../driver/sap/SapDriver";
+import { ColumnMetadata } from "../metadata/ColumnMetadata";
 import {QueryBuilder} from "./QueryBuilder";
 import {ObjectLiteral} from "../common/ObjectLiteral";
 import {Connection} from "../connection/Connection";
@@ -23,6 +24,7 @@ import {UpdateValuesMissingError} from "../error/UpdateValuesMissingError";
 import {EntityColumnNotFound} from "../error/EntityColumnNotFound";
 import {QueryDeepPartialEntity} from "./QueryPartialEntity";
 import {AuroraDataApiDriver} from "../driver/aurora-data-api/AuroraDataApiDriver";
+import {BetterSqlite3Driver} from "../driver/better-sqlite3/BetterSqlite3Driver";
 
 /**
  * Allows to build complex sql queries in a fashion way and execute those queries.
@@ -46,7 +48,8 @@ export class UpdateQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
      * Gets generated sql query without parameters being replaced.
      */
     getQuery(): string {
-        let sql = this.createUpdateExpression();
+        let sql = this.createComment();
+        sql += this.createUpdateExpression();
         sql += this.createOrderByExpression();
         sql += this.createLimitExpression();
         return sql.trim();
@@ -102,6 +105,14 @@ export class UpdateQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
             if (this.connection.driver instanceof PostgresDriver) {
                 updateResult.raw = result[0];
                 updateResult.affected = result[1];
+            }
+            else if (this.connection.driver instanceof MysqlDriver) {
+                updateResult.raw = result;
+                updateResult.affected = result.affectedRows;
+            }
+            else if (this.connection.driver instanceof BetterSqlite3Driver) { // only works for better-sqlite3
+                updateResult.raw = result;
+                updateResult.affected = result.changes;
             }
             else {
                 updateResult.raw = result;
@@ -381,6 +392,7 @@ export class UpdateQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
 
         // prepare columns and values to be updated
         const updateColumnAndValues: string[] = [];
+        const updatedColumns: ColumnMetadata[] = [];
         const newParameters: ObjectLiteral = {};
         let parametersCount =   this.connection.driver instanceof MysqlDriver ||
                                 this.connection.driver instanceof AuroraDataApiDriver ||
@@ -399,6 +411,7 @@ export class UpdateQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
 
                 columns.forEach(column => {
                     if (!column.isUpdate) { return; }
+                    updatedColumns.push(column);
 
                     const paramName = "upd_" + column.databaseName;
 
@@ -449,6 +462,8 @@ export class UpdateQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
                             } else {
                               expression = `ST_GeomFromGeoJSON(${this.connection.driver.createParameter(paramName, parametersCount)})::${column.type}`;
                             }
+                        } else if (this.connection.driver instanceof SqlServerDriver && this.connection.driver.spatialTypes.indexOf(column.type) !== -1) {
+                            expression = column.type + "::STGeomFromText(" + this.connection.driver.createParameter(paramName, parametersCount) + ", " + (column.srid || "0") + ")";
                         } else {
                             expression = this.connection.driver.createParameter(paramName, parametersCount);
                         }
@@ -458,9 +473,9 @@ export class UpdateQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
                 });
             });
 
-            if (metadata.versionColumn)
+            if (metadata.versionColumn && updatedColumns.indexOf(metadata.versionColumn) === -1)
                 updateColumnAndValues.push(this.escape(metadata.versionColumn.databaseName) + " = " + this.escape(metadata.versionColumn.databaseName) + " + 1");
-            if (metadata.updateDateColumn)
+            if (metadata.updateDateColumn && updatedColumns.indexOf(metadata.updateDateColumn) === -1)
                 updateColumnAndValues.push(this.escape(metadata.updateDateColumn.databaseName) + " = CURRENT_TIMESTAMP"); // todo: fix issue with CURRENT_TIMESTAMP(6) being used, can "DEFAULT" be used?!
 
         } else {
